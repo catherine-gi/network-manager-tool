@@ -1,10 +1,12 @@
 // Service/TopologyService.java
 package com.cath.topology_service.service;
 
+import com.cath.topology_service.model.HeartbeatLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.cath.topology_service.model.NetworkNode;
 import com.cath.topology_service.model.NetworkTopology;
+import com.cath.topology_service.repository.HeartbeatLogRepository;
 import com.cath.topology_service.repository.NetworkNodeRepository;
 import com.cath.topology_service.repository.NetworkTopologyRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,9 @@ import java.util.*;
 @Service
 public class TopologyService {
     private static final Logger logger = LoggerFactory.getLogger(TopologyService.class);
+
+    @Autowired
+    private HeartbeatLogRepository heartbeatLogRepository;
 
     @Autowired
     private NetworkNodeRepository nodeRepository;
@@ -58,7 +63,9 @@ public class TopologyService {
         Map<String, Integer> nodeLatencies = (Map<String, Integer>) heartbeatData.get("nodes");
 
         List<String> failedNodes = new ArrayList<>();
-
+        heartbeatLogRepository.save(
+                new HeartbeatLog(LocalDateTime.now(), nodeLatencies)
+        );
         for (Map.Entry<String, Integer> entry : nodeLatencies.entrySet()) {
             String nodeId = entry.getKey();
             Integer latency = entry.getValue();
