@@ -1,27 +1,39 @@
 package com.cath.topology_service.model;
 
-
-
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class PathRequest {
-    @NotNull
+    @NotNull(message = "fromNode cannot be null")
+    @NotBlank(message = "fromNode cannot be blank")
     private String fromNode;
 
-    @NotNull
+    @NotNull(message = "toNode cannot be null")
+    @NotBlank(message = "toNode cannot be blank")
     private String toNode;
 
-    private String topologyType = "MESH"; // Default value
+    // Constructors
+    public PathRequest() {}
+
+    public PathRequest(String fromNode, String toNode) {
+        this.fromNode = fromNode;
+        this.toNode = toNode;
+    }
 
     // Getters and Setters
-    public String getFromNode() { return fromNode; }
-    public void setFromNode(String fromNode) { this.fromNode = fromNode; }
+    public String getFromNode() {
+        return fromNode;
+    }
 
-    public String getToNode() { return toNode; }
-    public void setToNode(String toNode) { this.toNode = toNode; }
+    public void setFromNode(String fromNode) {
+        this.fromNode = fromNode;
+    }
 
-    public String getTopologyType() { return topologyType; }
-    public void setTopologyType(String topologyType) {
-        this.topologyType = topologyType;
+    public String getToNode() {
+        return toNode;
+    }
+
+    public void setToNode(String toNode) {
+        this.toNode = toNode;
     }
 }

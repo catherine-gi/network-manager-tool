@@ -1,7 +1,6 @@
 package com.cath.producer_service.controller;
 
-import com.cath.producer_service.model.NodeFailureRequest;
-import com.cath.producer_service.model.TopologyRequest;
+import com.cath.producer_service.model.*;
 import com.cath.producer_service.service.NetworkSimulationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +12,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/network")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173")
 public class NetworkController {
 
     @Autowired
@@ -34,6 +33,28 @@ public class NetworkController {
             errorResponse.put("message", "Failed to initialize topology: " + e.getMessage());
             errorResponse.put("status", "error");
 
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    @PostMapping("/update-node")
+    public ResponseEntity<Map<String, String>> updateNodeProperties(
+            @Valid @RequestBody NodeUpdateRequest request) {
+        try {
+            networkSimulationService.updateNodeProperties(
+                    request.getNodeId(),
+                    request.getCpu(),
+                    request.getLatency(),
+                    request.getStatus()
+            );
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Node properties updated successfully");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to update node: " + e.getMessage());
+            errorResponse.put("status", "error");
             return ResponseEntity.badRequest().body(errorResponse);
         }
     }
@@ -95,5 +116,136 @@ public class NetworkController {
         response.put("status", "success");
 
         return ResponseEntity.ok(response);
+    }
+    @PostMapping("/update-edge")
+    public ResponseEntity<Map<String, String>> updateEdgeProperties(
+            @Valid @RequestBody EdgeUpdateRequest request) {
+        try {
+            networkSimulationService.updateEdgeProperties(
+                    request.getEdgeId(),
+                    request.getSource(),
+                    request.getTarget(),
+                    request.getStatus()
+            );
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Edge properties updated successfully");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to update edge: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/edge-down")
+    public ResponseEntity<Map<String, String>> simulateEdgeFailure(@Valid @RequestBody EdgeFailureRequest request) {
+        try {
+            networkSimulationService.simulateEdgeFailure(
+                    request.getEdgeId(),
+                    request.getSource(),
+                    request.getTarget()
+            );
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Edge " + request.getSource() + "-" + request.getTarget() + " marked as failed");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to simulate edge failure: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/edge-restore")
+    public ResponseEntity<Map<String, String>> restoreEdge(@Valid @RequestBody EdgeFailureRequest request) {
+        try {
+            networkSimulationService.restoreEdge(
+                    request.getEdgeId(),
+                    request.getSource(),
+                    request.getTarget()
+            );
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Edge " + request.getSource() + "-" + request.getTarget() + " restored");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to restore edge: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    @PostMapping("/add-node")
+    public ResponseEntity<Map<String, String>> addNode(@Valid @RequestBody NodeAddRequest request) {
+        try {
+            networkSimulationService.addNode(request);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Node added successfully");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to add node: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/delete-node")
+    public ResponseEntity<Map<String, String>> deleteNode(@Valid @RequestBody NodeDeleteRequest request) {
+        try {
+            networkSimulationService.deleteNode(request.getNodeId());
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Node deleted successfully");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to delete node: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/add-edge")
+    public ResponseEntity<Map<String, String>> addEdge(@Valid @RequestBody EdgeAddRequest request) {
+        try {
+            networkSimulationService.addEdge(request);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Edge added successfully");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to add edge: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/delete-edge")
+    public ResponseEntity<Map<String, String>> deleteEdge(@Valid @RequestBody EdgeDeleteRequest request) {
+        try {
+            networkSimulationService.deleteEdge(request.getEdgeId());
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Edge deleted successfully");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Failed to delete edge: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
 }

@@ -17,6 +17,7 @@ public class NetworkPath {
     private Integer totalLatency;
     private Boolean isActive;
     private LocalDateTime calculatedAt;
+    private double weight;
     private String pathType; // PRIMARY, BACKUP, etc.
 
     public NetworkPath() {}
@@ -25,7 +26,7 @@ public class NetworkPath {
         this.fromNode = fromNode;
         this.toNode = toNode;
         this.path = path;
-        this.hopCount = path.size() - 1;
+        this.hopCount = path != null ? path.size() - 1 : 0;
         this.pathType = pathType;
         this.isActive = true;
         this.calculatedAt = LocalDateTime.now();
@@ -58,6 +59,9 @@ public class NetworkPath {
 
     public LocalDateTime getCalculatedAt() { return calculatedAt; }
     public void setCalculatedAt(LocalDateTime calculatedAt) { this.calculatedAt = calculatedAt; }
+
+    public double getWeight() { return weight; }
+    public void setWeight(double weight) { this.weight = weight; }
 
     public String getPathType() { return pathType; }
     public void setPathType(String pathType) { this.pathType = pathType; }
