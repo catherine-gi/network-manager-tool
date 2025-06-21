@@ -1,5 +1,6 @@
 package com.cath.path_service.controller;
 
+import com.cath.path_service.model.MultiplePathRequest;
 import com.cath.path_service.model.NetworkPath;
 import com.cath.path_service.service.PathCalculationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,15 @@ public class PathController {
 
             return ResponseEntity.badRequest().body(errorResponse);
         }
+    }
+    @PostMapping("/calculate-multiple")
+    public ResponseEntity<Map<String, List<NetworkPath>>> calculateMultiplePaths(
+            @RequestBody MultiplePathRequest request) {
+        Map<String, List<NetworkPath>> results = pathCalculationService.calculateMultiplePaths(
+                request.getPathRequests(),
+                request.getWeights()
+        );
+        return ResponseEntity.ok(results);
     }
 
 //    @GetMapping("/active")

@@ -80,6 +80,64 @@ public class PathCalculationService {
         }
     }
 
+    public Map<String, List<NetworkPath>> calculateMultiplePaths(
+            Map<String, List<String>> pathRequests,
+            Map<String, Double> weights) {
+
+        weights = normalizeWeights(weights);
+        logger.info("Calculating multiple paths with weights: {}", weights);
+
+        // Get topology once for all calculations
+        Map<String, Object> topologyResponse = webClientBuilder.build()
+                .get()
+                .uri(topologyServiceUrl + "/api/topology/complete")
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .block();
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> nodes = (List<Map<String, Object>>) topologyResponse.get("nodes");
+        @SuppressWarnings("unchecked")
+        List<List<String>> edges = (List<List<String>>) topologyResponse.get("edges");
+
+        Map<String, Map<String, Double>> graph = buildWeightedGraph(
+                nodes, edges,
+                weights.getOrDefault("hops", 0.0),
+                weights.getOrDefault("cpu", 0.0),
+                weights.getOrDefault("latency", 0.0)
+        );
+
+        Map<String, List<NetworkPath>> results = new HashMap<>();
+
+        for (Map.Entry<String, List<String>> entry : pathRequests.entrySet()) {
+            String fromNode = entry.getKey();
+            for (String toNode : entry.getValue()) {
+                if (!graph.containsKey(fromNode) || !graph.containsKey(toNode)) {
+                    logger.warn("Source {} or destination {} not found in topology", fromNode, toNode);
+                    results.put(fromNode + "->" + toNode, Collections.emptyList());
+                    continue;
+                }
+
+                // Delete existing paths for this pair
+                pathRepository.deleteByFromNodeAndToNode(fromNode, toNode);
+
+                List<PathWithWeight> allPaths = findKShortestPaths(graph, fromNode, toNode, MAX_PATHS_TO_CALCULATE);
+
+                List<NetworkPath> networkPaths = new ArrayList<>();
+                for (int i = 0; i < allPaths.size(); i++) {
+                    PathWithWeight p = allPaths.get(i);
+                    String pathType = i == 0 ? "PRIMARY" : "BACKUP";
+                    NetworkPath path = createNetworkPath(fromNode, toNode, weights, p, pathType);
+                    pathRepository.save(path);
+                    networkPaths.add(path);
+                }
+                results.put(fromNode + "->" + toNode, networkPaths);
+            }
+        }
+
+        return results;
+    }
+
     private Map<String, Double> normalizeWeights(Map<String, Double> weights) {
         double total = weights.values().stream().mapToDouble(Double::doubleValue).sum();
         if (total <= 0) return Map.of("hops", 0.5, "cpu", 0.25, "latency", 0.25);
@@ -318,6 +376,20 @@ public class PathCalculationService {
         return totalLatency / (path.size() - 1);
     }
 
+    public void handleNodeFailure(List<String> failedNodes) {
+        logger.info("Handling node failure for nodes: {}", failedNodes);
+        // Find all paths that include any of the failed nodes and deactivate them
+        List<NetworkPath> affectedPaths = pathRepository.findAll().stream()
+                .filter(path -> path.getPath().stream().anyMatch(failedNodes::contains))
+                .collect(Collectors.toList());
+
+        for (NetworkPath path : affectedPaths) {
+            path.setIsActive(false);
+            pathRepository.save(path);
+            logger.info("Deactivated path due to node failure: {}", path.getPath());
+        }
+    }
+
     private static class PathNode implements Comparable<PathNode> {
         String node;
         double distance;
@@ -345,19 +417,6 @@ public class PathCalculationService {
         @Override
         public int compareTo(PathWithWeight other) {
             return Double.compare(this.weight, other.weight);
-        }
-    }
-    public void handleNodeFailure(List<String> failedNodes) {
-        logger.info("Handling node failure for nodes: {}", failedNodes);
-        // Find all paths that include any of the failed nodes and deactivate them
-        List<NetworkPath> affectedPaths = pathRepository.findAll().stream()
-                .filter(path -> path.getPath().stream().anyMatch(failedNodes::contains))
-                .collect(Collectors.toList());
-
-        for (NetworkPath path : affectedPaths) {
-            path.setIsActive(false);
-            pathRepository.save(path);
-            logger.info("Deactivated path due to node failure: {}", path.getPath());
         }
     }
 }
