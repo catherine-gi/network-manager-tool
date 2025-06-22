@@ -101,19 +101,17 @@ const buttonPrimaryHover = {
 
 const paneStyle = {
   position: 'absolute',
-  top: 0,
-  left: 0,
+  top: 20,
+  left: 20,
   zIndex: 10,
   background: colors.paneBg,
   padding: '20px 25px',
   border: `1px solid ${colors.border}`,
-  borderRadius: 0,
+  borderRadius: 14,
   boxShadow: '0 6px 15px rgb(0 0 0 / 0.07)',
-  width: 350,
+  width: 300,
   fontFamily: 'Inter, sans-serif',
-  color: colors.textPrimary,
-  height: '100%',
-  overflowY: 'auto'
+  color: colors.textPrimary
 };
 
 const messageBoxStyle = (isError) => ({
@@ -152,10 +150,7 @@ const navStyle = {
   color: colors.navText,
   fontFamily: 'Inter, sans-serif',
   userSelect: 'none',
-  boxSizing: 'border-box',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1000
+  boxSizing: 'border-box'
 };
 
 const navItemStyle = (active) => ({
@@ -193,25 +188,6 @@ const TopologyCreator = () => {
   const [batchResults, setBatchResults] = useState({});
   const [showMultiplePaths, setShowMultiplePaths] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState([]);
-
-  // Viewport dimensions
-  const [viewportDimensions, setViewportDimensions] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight
-  });
-
-  // Update viewport dimensions on resize
-  useEffect(() => {
-    const handleResize = () => {
-      setViewportDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const isEdgeInPath = (edge, path) => {
     for (let i = 0; i < path.length - 1; i++) {
@@ -318,27 +294,6 @@ const TopologyCreator = () => {
       }
     }
   }, [selectedPathIndex, paths, showMultiplePaths, selectedPaths]);
-
-  const adjustPanelPosition = (position) => {
-    const panelWidth = 300;
-    const panelHeight = 500; // Approximate height
-    const margin = 20;
-
-    let adjustedX = position.x;
-    let adjustedY = position.y;
-
-    // Adjust X position if panel would go off right side
-    if (position.x + panelWidth > viewportDimensions.width) {
-      adjustedX = viewportDimensions.width - panelWidth - margin;
-    }
-
-    // Adjust Y position if panel would go off bottom
-    if (position.y + panelHeight > viewportDimensions.height) {
-      adjustedY = viewportDimensions.height - panelHeight - margin;
-    }
-
-    return { x: Math.max(margin, adjustedX), y: Math.max(margin, adjustedY) };
-  };
 
   const handleWeightChange = (key, value) => {
     const newWeights = { ...weights };
@@ -449,7 +404,8 @@ const TopologyCreator = () => {
           id: edge.id,
           source: edge.source,
           target: edge.target,
-          status: edge.data?.status ?? 'active'
+          status: edge.data?.status ?? 'active',
+          latency: edge.data?.latency ?? 50
         })),
       };
 
@@ -491,7 +447,10 @@ const TopologyCreator = () => {
             ...params,
             markerEnd: { type: MarkerType.ArrowClosed },
             type: 'smoothstep',
-            data: { status: 'active' },
+            data: { 
+              status: 'active',
+              latency: 50 // Default latency
+            },
             style: { stroke: '#bbb', strokeWidth: 2 }
           },
           eds
@@ -506,11 +465,10 @@ const TopologyCreator = () => {
     setSelectedNode(node);
     setSelectedEdge(null);
     const wrapperBounds = reactFlowWrapper.current.getBoundingClientRect();
-    const position = adjustPanelPosition({
+    setEditPanelPosition({
       x: node.position.x + wrapperBounds.left + 20,
       y: node.position.y + wrapperBounds.top
     });
-    setEditPanelPosition(position);
   }, []);
 
   const onEdgeClick = useCallback((event, edge) => {
@@ -518,11 +476,10 @@ const TopologyCreator = () => {
     setSelectedEdge(edge);
     setSelectedNode(null);
     const wrapperBounds = reactFlowWrapper.current.getBoundingClientRect();
-    const position = adjustPanelPosition({
+    setEditPanelPosition({
       x: wrapperBounds.left + 400,
       y: wrapperBounds.top + 200
     });
-    setEditPanelPosition(position);
   }, []);
 
   const onPaneClick = useCallback(() => {
@@ -572,21 +529,23 @@ const TopologyCreator = () => {
   );
 
   const updateEdgeProperties = useCallback(
-    (edgeId, newProperties) => {
+    (edgeId, source, target, status, latency) => {
       setEdges((eds) =>
         eds.map((edge) => {
           if (edge.id === edgeId) {
-            const updatedStatus = newProperties.status || edge.data?.status || 'active';
+            const updatedStatus = status || edge.data?.status || 'active';
+            const updatedLatency = latency !== undefined ? latency : edge.data?.latency || 50;
 
             axios
               .post('http://localhost:8081/api/network/update-edge', {
                 edgeId: edgeId,
-                source: edge.source,
-                target: edge.target,
-                status: updatedStatus
+                source: source,
+                target: target,
+                status: updatedStatus,
+                latency: updatedLatency
               })
               .then(() => {
-                setMessage(`Edge ${edge.source} → ${edge.target} updated successfully`);
+                setMessage(`Edge ${source} → ${target} updated successfully`);
               })
               .catch((error) => {
                 setMessage(`Error updating edge: ${error.response?.data?.message || error.message}`);
@@ -596,7 +555,8 @@ const TopologyCreator = () => {
               ...edge,
               data: {
                 ...edge.data,
-                status: updatedStatus
+                status: updatedStatus,
+                latency: updatedLatency
               },
               style: {
                 ...edge.style,
@@ -669,7 +629,7 @@ const TopologyCreator = () => {
         source,
         target
       });
-      updateEdgeProperties(edgeId, { status: 'failed' });
+      updateEdgeProperties(edgeId, source, target, 'failed');
       setMessage(`Edge ${source} → ${target} marked as failed`);
     } catch (error) {
       setMessage(`Error: ${error.response?.data?.message || error.message}`);
@@ -683,7 +643,7 @@ const TopologyCreator = () => {
         source,
         target
       });
-      updateEdgeProperties(edgeId, { status: 'active' });
+      updateEdgeProperties(edgeId, source, target, 'active');
       setMessage(`Edge ${source} → ${target} restored`);
     } catch (error) {
       setMessage(`Error: ${error.response?.data?.message || error.message}`);
@@ -1065,15 +1025,7 @@ const TopologyCreator = () => {
   );
 
   return (
-    <div style={{ 
-      height: '100vh', 
-      width: '100vw', 
-      backgroundColor: colors.lightBg, 
-      position: 'relative', 
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
+    <div style={{ height: '100vh', width: '100vw', backgroundColor: colors.lightBg, position: 'relative', overflow: 'hidden' }}>
       {/* NAVBAR */}
       <nav style={navStyle} role="navigation" aria-label="Main navigation">
         <div
@@ -1122,55 +1074,38 @@ const TopologyCreator = () => {
         </div>
       </nav>
 
-      {/* MAIN CONTENT AREA */}
-      <div style={{ 
-        display: 'flex', 
-        flex: 1, 
-        overflow: 'hidden',
-        position: 'relative'
-      }}>
-        {/* LEFT PANE */}
-        <aside style={paneStyle}>
-          {message && (
-            <div role="alert" style={messageBoxStyle(message.toLowerCase().startsWith('error') || message.toLowerCase().startsWith('please'))}>
-              {message}
-            </div>
-          )}
+      {/* LEFT PANE */}
+      <aside style={{ ...paneStyle, top: 54, left: 20, height: 'calc(100vh - 74px)', overflowY: 'auto', paddingBottom: 30 }}>
+        {message && (
+          <div role="alert" style={messageBoxStyle(message.toLowerCase().startsWith('error') || message.toLowerCase().startsWith('please'))}>
+            {message}
+          </div>
+        )}
 
-          {currentNav === 'create_topology' && renderCreateTopologyContent()}
-          {currentNav === 'find_paths' && renderFindPathsContent()}
-          {currentNav === 'events_log' && renderEventLogContent()}
-          {currentNav === 'alarm_notifications' && renderAlarmNotificationsContent()}
-        </aside>
+        {currentNav === 'create_topology' && renderCreateTopologyContent()}
+        {currentNav === 'find_paths' && renderFindPathsContent()}
+        {currentNav === 'events_log' && renderEventLogContent()}
+        {currentNav === 'alarm_notifications' && renderAlarmNotificationsContent()}
+      </aside>
 
-        {/* MAIN FLOW AREA */}
-        <div style={{ 
-          flex: 1, 
-          height: '100%',
-          position: 'relative',
-          overflow: 'hidden'
-        }} ref={reactFlowWrapper}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onEdgeClick={onEdgeClick}
-            onPaneClick={onPaneClick}
-            fitView
-            style={{ 
-              height: '100%', 
-              width: '100%', 
-              backgroundColor: colors.paneBg 
-            }}
-          >
-            <Background />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
-        </div>
+      {/* MAIN FLOW AREA */}
+      <div style={{ height: '100%', width: '100%', paddingLeft: 350, boxSizing: 'border-box' }} ref={reactFlowWrapper}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClick}
+          fitView
+          style={{ height: '100%', width: '100%', backgroundColor: colors.paneBg, borderRadius: 8 }}
+        >
+          <Background />
+          <Controls />
+          <MiniMap />
+        </ReactFlow>
       </div>
 
       {/* NODE EDIT PANEL */}
@@ -1179,11 +1114,9 @@ const TopologyCreator = () => {
           style={{
             ...paneStyle,
             width: 300,
-            left: Math.min(editPanelPosition.x, viewportDimensions.width - 320),
-            top: Math.min(editPanelPosition.y, viewportDimensions.height - 500),
-            boxShadow: '0 12px 30px rgb(0 0 0 / 0.12)',
-            position: 'fixed',
-            zIndex: 1001
+            left: editPanelPosition.x,
+            top: editPanelPosition.y,
+            boxShadow: '0 12px 30px rgb(0 0 0 / 0.12)'
           }}
           role="dialog"
           aria-modal="true"
@@ -1359,11 +1292,9 @@ const TopologyCreator = () => {
           style={{
             ...paneStyle,
             width: 320,
-            left: Math.min(editPanelPosition.x, viewportDimensions.width - 340),
-            top: Math.min(editPanelPosition.y, viewportDimensions.height - 500),
-            boxShadow: '0 12px 30px rgb(0 0 0 / 0.12)',
-            position: 'fixed',
-            zIndex: 1001
+            left: editPanelPosition.x,
+            top: editPanelPosition.y,
+            boxShadow: '0 12px 30px rgb(0 0 0 / 0.12)'
           }}
           role="dialog"
           aria-modal="true"
@@ -1402,7 +1333,7 @@ const TopologyCreator = () => {
             <strong>Connection:</strong> {selectedEdge.source} → {selectedEdge.target}
           </p>
 
-          <p style={{ color: colors.textSecondary, marginTop: 0, marginBottom: 28, fontSize: 15 }}>
+          <p style={{ color: colors.textSecondary, marginTop: 0, marginBottom: 10, fontSize: 15 }}>
             <strong>Status:</strong>{' '}
             <span
               style={{
@@ -1413,6 +1344,33 @@ const TopologyCreator = () => {
               {selectedEdge.data?.status || 'active'}
             </span>
           </p>
+
+          <p style={{ color: colors.textSecondary, marginTop: 0, marginBottom: 28, fontSize: 15 }}>
+            <strong>Latency:</strong> {selectedEdge.data?.latency || 50}ms
+          </p>
+
+          <div style={{ marginBottom: 16 }}>
+            <label htmlFor="editEdgeLatency" style={labelStyle}>
+              Edge Latency (ms)
+            </label>
+            <input
+              id="editEdgeLatency"
+              type="number"
+              min={1}
+              max={1000}
+              value={selectedEdge.data?.latency || 50}
+              onChange={(e) => updateEdgeProperties(
+                selectedEdge.id, 
+                selectedEdge.source, 
+                selectedEdge.target, 
+                selectedEdge.data?.status || 'active',
+                Math.min(1000, Math.max(1, Number(e.target.value || 50)))
+              )}
+              style={inputStyle}
+              onFocus={e => (e.currentTarget.style.outlineColor = colors.buttonBg)}
+              onBlur={e => (e.currentTarget.style.outlineColor = 'transparent')}
+            />
+          </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <button

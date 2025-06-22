@@ -16,4 +16,6 @@ public class EdgeUpdateRequest {
 
     @NotNull
     private String status;
+    @NotNull
+    private int latency;
 }

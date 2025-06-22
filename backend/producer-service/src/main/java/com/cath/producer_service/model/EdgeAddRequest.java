@@ -17,4 +17,6 @@ public class EdgeAddRequest {
 
     @NotNull(message = "Status is required")
     private String status; // "active", "failed"
+    @NotNull(message = "Latency is required")
+    private int latency;
 }

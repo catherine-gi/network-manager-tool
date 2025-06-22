@@ -125,7 +125,8 @@ public class NetworkController {
                     request.getEdgeId(),
                     request.getSource(),
                     request.getTarget(),
-                    request.getStatus()
+                    request.getStatus(),
+                    request.getLatency()
             );
 
             Map<String, String> response = new HashMap<>();

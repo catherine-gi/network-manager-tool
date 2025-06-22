@@ -9,4 +9,5 @@ public class TopologyEdge {
     private String target;
     private String label;
     private String status;
+    private int latency;
 }

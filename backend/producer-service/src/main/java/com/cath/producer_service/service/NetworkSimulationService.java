@@ -1,4 +1,5 @@
 package com.cath.producer_service.service;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.cath.producer_service.model.*;
@@ -24,7 +25,7 @@ public class NetworkSimulationService {
     private boolean simulationActive = false;
 
     // Edge-related state
-    private Map<String, String> edgeStatus = new HashMap<>();  // key: source-target, value: "active"/"failed"
+    private Map<String, EdgeProperties> edgeProperties = new HashMap<>();  // key: source-target, value: EdgeProperties
     private Set<String> failedEdges = new HashSet<>();
 
     @Data
@@ -34,13 +35,19 @@ public class NetworkSimulationService {
         private String status;
     }
 
+    @Data
+    private static class EdgeProperties {
+        private String status;
+        private int latency;
+    }
+
     public void initializeTopology(TopologyRequest request) {
         // Clear existing state
         activeNodes.clear();
         failedNodes.clear();
         nodeProperties.clear();
         adjacencyList.clear();
-        edgeStatus.clear();
+        edgeProperties.clear();
         failedEdges.clear();
 
         // Deduplicate nodes by ID
@@ -91,12 +98,14 @@ public class NetworkSimulationService {
             }
         });
 
-        // Store edge statuses from deduplicated edges
+        // Store edge properties from deduplicated edges
         uniqueEdges.forEach(edge -> {
             String edgeKey = edge.getSource() + "-" + edge.getTarget();
-            String status = edge.getStatus() != null ? edge.getStatus() : "active";
-            edgeStatus.put(edgeKey, status);
-            if ("failed".equalsIgnoreCase(status)) {
+            EdgeProperties props = new EdgeProperties();
+            props.setStatus(edge.getStatus() != null ? edge.getStatus() : "active");
+            props.setLatency(edge.getLatency());
+            edgeProperties.put(edgeKey, props);
+            if ("failed".equalsIgnoreCase(props.getStatus())) {
                 failedEdges.add(edgeKey);
             }
         });
@@ -121,6 +130,7 @@ public class NetworkSimulationService {
                     edgeMap.put("source", e.getSource());
                     edgeMap.put("target", e.getTarget());
                     edgeMap.put("status", e.getStatus() != null ? e.getStatus() : "active");
+                    edgeMap.put("latency", e.getLatency());
                     return edgeMap;
                 })
                 .collect(Collectors.toList()));
@@ -173,7 +183,6 @@ public class NetworkSimulationService {
         kafkaProducerService.sendMessage("heartbeat-topic", heartbeat);
     }
 
-
     public void updateNodeProperties(String nodeId, int cpu, int latency, String status) {
         if (nodeProperties.containsKey(nodeId)) {
             NodeProperties props = nodeProperties.get(nodeId);
@@ -225,9 +234,12 @@ public class NetworkSimulationService {
         }
     }
 
-    public void updateEdgeProperties(String edgeId, String source, String target, String status) {
+    public void updateEdgeProperties(String edgeId, String source, String target, String status, int latency) {
         String edgeKey = source + "-" + target;
-        edgeStatus.put(edgeKey, status);
+        EdgeProperties props = edgeProperties.getOrDefault(edgeKey, new EdgeProperties());
+        props.setStatus(status);
+        props.setLatency(latency);
+        edgeProperties.put(edgeKey, props);
 
         if ("failed".equalsIgnoreCase(status)) {
             failedEdges.add(edgeKey);
@@ -240,6 +252,7 @@ public class NetworkSimulationService {
         updateMsg.put("source", source);
         updateMsg.put("target", target);
         updateMsg.put("status", status);
+        updateMsg.put("latency", latency);
         updateMsg.put("timestamp", new Date());
 
         kafkaProducerService.sendMessage("topology-init-topic", updateMsg);
@@ -247,8 +260,10 @@ public class NetworkSimulationService {
 
     public void simulateEdgeFailure(String edgeId, String source, String target) {
         String edgeKey = source + "-" + target;
+        EdgeProperties props = edgeProperties.getOrDefault(edgeKey, new EdgeProperties());
+        props.setStatus("failed");
+        edgeProperties.put(edgeKey, props);
         failedEdges.add(edgeKey);
-        edgeStatus.put(edgeKey, "failed");
 
         Map<String, Object> failureMsg = new HashMap<>();
         failureMsg.put("edgeId", edgeId);
@@ -261,8 +276,10 @@ public class NetworkSimulationService {
 
     public void restoreEdge(String edgeId, String source, String target) {
         String edgeKey = source + "-" + target;
+        EdgeProperties props = edgeProperties.getOrDefault(edgeKey, new EdgeProperties());
+        props.setStatus("active");
+        edgeProperties.put(edgeKey, props);
         failedEdges.remove(edgeKey);
-        edgeStatus.put(edgeKey, "active");
 
         Map<String, Object> restoreMsg = new HashMap<>();
         restoreMsg.put("edgeId", edgeId);
@@ -297,15 +314,15 @@ public class NetworkSimulationService {
         // Remove all edges where this node is the target (incoming connections)
         adjacencyList.values().forEach(targets -> targets.remove(nodeId));
 
-        // Remove all edges connected to this node from edge status
+        // Remove all edges connected to this node from edge properties
         List<String> edgesToRemove = new ArrayList<>();
-        for (String edgeKey : edgeStatus.keySet()) {
+        for (String edgeKey : edgeProperties.keySet()) {
             if (edgeKey.startsWith(nodeId + "-") || edgeKey.endsWith("-" + nodeId)) {
                 edgesToRemove.add(edgeKey);
             }
         }
         edgesToRemove.forEach(edgeKey -> {
-            edgeStatus.remove(edgeKey);
+            edgeProperties.remove(edgeKey);
             failedEdges.remove(edgeKey);
         });
 
@@ -315,11 +332,13 @@ public class NetworkSimulationService {
 
     public void addEdge(EdgeAddRequest request) {
         String edgeKey = request.getSource() + "-" + request.getTarget();
-        edgeStatus.put(edgeKey, request.getStatus());
+        EdgeProperties props = new EdgeProperties();
+        props.setStatus(request.getStatus());
+        props.setLatency(request.getLatency());
+        edgeProperties.put(edgeKey, props);
 
         // Update adjacency list (UNIDIRECTIONAL)
         adjacencyList.computeIfAbsent(request.getSource(), k -> new ArrayList<>()).add(request.getTarget());
-        // Do NOT add reverse connection
 
         // Send full topology update
         sendFullTopologyUpdate();
@@ -327,7 +346,7 @@ public class NetworkSimulationService {
 
     public void deleteEdge(String edgeId) {
         // Assuming edgeId is in format "source-target"
-        edgeStatus.remove(edgeId);
+        edgeProperties.remove(edgeId);
         failedEdges.remove(edgeId);
 
         // Update adjacency list (UNIDIRECTIONAL)
@@ -339,7 +358,6 @@ public class NetworkSimulationService {
             if (adjacencyList.containsKey(source)) {
                 adjacencyList.get(source).remove(target);
             }
-            // Do NOT remove reverse connection since it doesn't exist
         }
 
         // Send full topology update
@@ -358,14 +376,15 @@ public class NetworkSimulationService {
         });
 
         List<Map<String, Object>> edges = new ArrayList<>();
-        edgeStatus.forEach((edgeKey, status) -> {
+        edgeProperties.forEach((edgeKey, props) -> {
             String[] nodePair = edgeKey.split("-");
             if (nodePair.length == 2) {
                 Map<String, Object> edgeMap = new HashMap<>();
                 edgeMap.put("id", edgeKey);
                 edgeMap.put("source", nodePair[0]);
                 edgeMap.put("target", nodePair[1]);
-                edgeMap.put("status", status);
+                edgeMap.put("status", props.getStatus());
+                edgeMap.put("latency", props.getLatency());
                 edges.add(edgeMap);
             }
         });
@@ -384,7 +403,7 @@ public class NetworkSimulationService {
         failedNodes.clear();
         nodeProperties.clear();
         adjacencyList.clear();
-        edgeStatus.clear();
+        edgeProperties.clear();
         failedEdges.clear();
     }
 
@@ -400,8 +419,8 @@ public class NetworkSimulationService {
         return new HashMap<>(nodeProperties);
     }
 
-    public Map<String, String> getEdgeStatus() {
-        return new HashMap<>(edgeStatus);
+    public Map<String, EdgeProperties> getEdgeProperties() {
+        return new HashMap<>(edgeProperties);
     }
 
     public Set<String> getFailedEdges() {
