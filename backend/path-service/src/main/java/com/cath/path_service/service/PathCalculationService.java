@@ -195,44 +195,7 @@ public class PathCalculationService {
 
         return graph;
     }
-//    private Map<String, Map<String, Double>> buildWeightedGraph(
-//            List<Map<String, Object>> nodes,
-//            List<List<String>> edges,
-//            double hopsWeight,
-//            double cpuWeight,
-//            double latencyWeight) {
-//
-//        Map<String, Map<String, Double>> graph = new HashMap<>();
-//        this.nodeMap = nodes.stream()
-//                .collect(Collectors.toMap(
-//                        n -> (String) n.get("_id"),
-//                        n -> n
-//                ));
-//        for (Map<String, Object> node : nodes) {
-//            String nodeId = (String) node.get("_id");
-//            graph.putIfAbsent(nodeId, new HashMap<>());
-//        }
-//
-//        for (List<String> edge : edges) {
-//            if (edge.size() != 2) continue;
-//
-//            String source = edge.get(0);
-//            String target = edge.get(1);
-//
-//            Map<String, Object> sourceNode = nodeMap.get(source);
-//            Map<String, Object> targetNode = nodeMap.get(target);
-//
-//            if (sourceNode == null || targetNode == null) continue;
-//
-//            double weight = calculateCompositeWeight(sourceNode, targetNode, hopsWeight, cpuWeight, latencyWeight);
-//            graph.get(source).put(target, weight);
-//
-////            graph.computeIfAbsent(source, k -> new HashMap<>()).put(target, weight);
-////            graph.computeIfAbsent(target, k -> new HashMap<>()).put(source, weight);
-//        }
-//
-//        return graph;
-//    }
+
 
     private double calculateCompositeWeight(
             Map<String, Object> sourceNode,

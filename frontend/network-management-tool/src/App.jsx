@@ -1,12 +1,12 @@
+import React from 'react';
 import './App.css';
 import TopologyCreator from './TopologyCreator';
 
-function App() {
+
+const App = () => {
   return (
-    <div className="App">
-      <TopologyCreator />
-    </div>
+    <TopologyCreator />
   );
-}
+};
 
 export default App;
