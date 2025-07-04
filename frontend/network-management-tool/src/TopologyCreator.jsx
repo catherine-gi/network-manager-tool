@@ -12,7 +12,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import axios from 'axios';
 import AlarmNotifications from './AlarmNotifications';
-
+import EventLog from './EventLog';
 
 // Path colors for visualization
 const PATH_COLORS = [
@@ -1054,12 +1054,14 @@ const TopologyCreator = () => {
       )}
     </>
   );
-
-  const renderEventLogContent = () => (
-    <div style={{ color: colors.textSecondary, fontStyle: 'italic', marginTop: 20, fontSize: 14 }}>
-      Events log coming soon...
-    </div>
-  );
+const renderEventLogContent = () => (
+  <EventLog />
+);
+  // const renderEventLogContent = () => (
+  //   <div style={{ color: colors.textSecondary, fontStyle: 'italic', marginTop: 20, fontSize: 14 }}>
+  //     Events log coming soon...
+  //   </div>
+  // );
 
 const renderAlarmNotificationsContent = () => (
   <AlarmNotifications />
@@ -1110,6 +1112,17 @@ const renderAlarmNotificationsContent = () => (
         >
           Events Log
         </div>
+        {/* <div
+          onClick={() => setCurrentNav('events_log')}
+          style={navItemStyle(currentNav === 'events_log')}
+          tabIndex={0}
+          role="button"
+          onKeyPress={e => { if(e.key === 'Enter' || e.key === ' ') setCurrentNav('events_log'); }}
+          aria-current={currentNav === 'events_log' ? 'page' : undefined}
+          aria-label="Events Log tab"
+        >
+          Events Log
+        </div> */}
         <div
           onClick={() => setCurrentNav('alarm_notifications')}
           style={navItemStyle(currentNav === 'alarm_notifications')}
