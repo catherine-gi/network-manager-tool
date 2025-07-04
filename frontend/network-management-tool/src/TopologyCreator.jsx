@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-//import AlarmDashboard from './AlarmNotifications';
 import ReactFlow, {
   addEdge,
   Background,
@@ -12,7 +11,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import axios from 'axios';
 import AlarmNotifications from './AlarmNotifications';
-
+import EventLog from './EventLog';
 
 // Path colors for visualization
 const PATH_COLORS = [
@@ -1056,14 +1055,12 @@ const TopologyCreator = () => {
   );
 
   const renderEventLogContent = () => (
-    <div style={{ color: colors.textSecondary, fontStyle: 'italic', marginTop: 20, fontSize: 14 }}>
-      Events log coming soon...
-    </div>
+    <EventLog />
   );
 
-const renderAlarmNotificationsContent = () => (
-  <AlarmNotifications />
-);
+  const renderAlarmNotificationsContent = () => (
+    <AlarmNotifications />
+  );
 
   return (
     <div style={{ 

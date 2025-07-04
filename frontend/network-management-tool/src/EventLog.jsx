@@ -52,7 +52,7 @@ const eventTypes = [
   { label: 'All Event Types', value: '' },
   { label: 'TOPOLOGY_INITIALIZATION', value: 'TOPOLOGY_INITIALIZATION' },
   { label: 'NODE_FAILURE', value: 'NODE_FAILURE' },
-  { label: 'NODE_RECOVERY', value: 'NODE_RECOVERY' }, // Corrected from NODE_RESTORE to NODE_RECOVERY based on provided data
+  { label: 'NODE_RECOVERY', value: 'NODE_RECOVERY' },
 ];
 
 const EventLog = () => {
@@ -71,26 +71,10 @@ const EventLog = () => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        // Using the provided sample data directly for demonstration, assuming the actual API call would return similar structure
-        const sampleData = [
-            {id: "6865158ba4d0022ec16ca2f3", epoch: 1751455115491, eventType: "system", description: "TOPOLOGY_INITIALIZATION"},
-            {id: "68651591a4d0022ec16ca2f6", epoch: 1751455121764, eventType: "system", description: "TOPOLOGY_INITIALIZATION"},
-            {id: "68651595a4d0022ec16ca2f8", epoch: 1751455125424, eventType: "system", description: "NODE_FAILURE"},
-            {id: "686515a3a4d0022ec16ca2fc", epoch: 1751455139890, eventType: "system", description: "TOPOLOGY_INITIALIZATION"},
-            {id: "686515a9a4d0022ec16ca2ff", epoch: 1751455145425, eventType: "system", description: "NODE_FAILURE"},
-            {id: "686515b8a4d0022ec16ca303", epoch: 1751455160430, eventType: "system", description: "NODE_RECOVERY"},
-            {id: "686515bea4d0022ec16ca306", epoch: 1751455166017, eventType: "system", description: "TOPOLOGY_INITIALIZATION"},
-            {id: "686515c8a4d0022ec16ca308", epoch: 1751455176813, eventType: "system", description: "TOPOLOGY_INITIALIZATION"},
-            {id: "686516a5f2b1b74a4c0a58e7", epoch: 1751455397710, eventType: "system", description: "TOPOLOGY_INITIALIZATION"},
-            {id: "68651da4e82b7e33a8c8d352", epoch: 1751457188597, eventType: "system", description: "TOPOLOGY_INITIALIZATION"},
-            {id: "68651da8e82b7e33a8c8d355", epoch: 1751457192124, eventType: "system", description: "TOPOLOGY_INITIALIZATION"}
-        ];
-        // In a real application, you'd uncomment the axios call and remove sampleData
-        // const response = await axios.get('http://localhost:8082/api/events');
-        // setAllEvents(response.data || []);
-        setAllEvents(sampleData); // Using sample data for demonstration
+        const response = await axios.get('http://localhost:8082/api/events');
+        setAllEvents(response.data || []);
         setError('');
-      } catch (err) {
+      } catch {
         setError('Failed to fetch events');
         setAllEvents([]);
       } finally {
@@ -104,8 +88,6 @@ const EventLog = () => {
   useEffect(() => {
     const filtered = allEvents.filter(event => {
       // Event type matches filter description or all
-      // The event.eventType field is missing in the sample data, using event.description for filtering for now.
-      // If eventType field exists in actual data, replace event.description with event.eventType
       if (filters.eventType && event.description !== filters.eventType) {
         return false;
       }
@@ -133,21 +115,20 @@ const EventLog = () => {
   const formatDate = (epoch) => {
     if (!epoch || epoch === 0) return 'N/A';
     try {
-      // Displaying the date and time without seconds for brevity, can adjust as needed
       return new Date(epoch).toLocaleString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false // Use 24-hour format
+        second: '2-digit',
+        hour12: false
       });
     } catch {
       return 'Invalid Date';
     }
   };
 
-  // Helper to format date for datetime-local input
   const formatDateTimeLocal = (date) => {
     if (!date) return '';
     const year = date.getFullYear();
@@ -280,15 +261,7 @@ const EventLog = () => {
                   aria-label={`Event ${event.description} occurred at ${formatDate(event.epoch)}`}>
                   <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>{formatDate(event.epoch)}</td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, textTransform: 'uppercase' }}>{event.description}</td>
-                  {/* Assuming event.eventType should be displayed from the data. If not present, it will be empty.
-                      Based on the sample data provided, 'eventType' field itself is not present for each event,
-                      but rather a 'system' value under 'eventType' in the overall JSON structure.
-                      If your actual API returns 'eventType' for each event, this line will work.
-                      For the given sample, `event.eventType` would be undefined.
-                      To demonstrate, I'm using `event.eventType` as it implies you might have it in real data.
-                      If not, consider using `event.description` or another suitable field.
-                  */}
-                  <td style={{ padding: '12px 16px' }}>{event.eventType || 'N/A'}</td>
+                  <td style={{ padding: '12px 16px' }}>{event.eventType}</td>
                 </tr>
               ))
             )}
